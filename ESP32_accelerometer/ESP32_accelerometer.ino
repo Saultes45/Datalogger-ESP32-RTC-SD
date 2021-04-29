@@ -95,7 +95,7 @@ DateTime timestampForFileName; // MUST be global!!!!! or it won't update
 // 1 file = 1h recording @ 10Hz = 36,000 lines per files ~ 290KB
 // if we lose a file we only lose 1h worth of data
 uint16_t  cntLinesInFile  = 0; // written at the end of a file for check (36,000 < 65,535)
-uint8_t   cntFile         = 0; // counter that counts the files, included in the name of the file
+uint32_t  cntFile         = 0; // counter that counts the files, included in the name of the file, can handle 0d to 99999d (need 17 bits)
 File      dataFile;            // only 1 file can be opened at a certain time, <KEEP GLOBAL>
 String    fileName        = ""; // name of the file on the SD card
 
