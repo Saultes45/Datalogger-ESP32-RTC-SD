@@ -105,15 +105,16 @@ String    fileName        = ""; // name of the file on the SD card
 // NONE
 
 // -------------------------- Functions declaration --------------------------
-void changeCPUFrequency             (void); // Change thef CPU frequency and report about it over serial
+void changeCPUFrequency             (void); // Change the CPU frequency and report about it over serial
 void print_reset_reason             (RESET_REASON reason);
 void verbose_print_reset_reason     (RESET_REASON reason);
 void displayWakeUpReason            (void); // Display why the module went to sleep
 void testSDCard                     (void); // Test that the SD card can be accessed
 void testRTC                        (void); // Test that the RTC can be accessed
-void createNewFile                  (void); // Create a name a new file on the SD card, file variable is global
-void closeFile                      (void); // close the file currently being used, on the SD card, file variable is global
-void error                          (uint8_t errno);
+void createNewFile                  (void); // Create a name a new DATA file on the SD card, file variable is global
+void closeFile                      (void); // Close the file currently being used, on the SD card, file variable is global
+void error                          (uint8_t errno); // <---- TODO Edit this
+void createNewSeparatorFile         (void); // Create a name a new SEPARATOR file on the SD card and close it immediatly (just a beautifier)
 
 // -------------------------- Set up --------------------------
 
@@ -131,7 +132,7 @@ void setup() {
   displayWakeUpReason();
   changeCPUFrequency();
 
-  // Order of the last 3 tests can be changed
+  // The order of the last 3 tests can be changed
   testIMU();
   testSDCard();
   testRTC();
@@ -142,8 +143,8 @@ void setup() {
 
   // Indicates the end of the setup with the red on-board LED
   //---------------------------------------------------------
-  digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
-  delay(10);                       // wait for a second
+  digitalWrite(LED_BUILTIN, LOW);  // Turn the LED OFF by making the voltage LOW
+  delay(10);                       // Wait a bit
 
 }
 
@@ -545,6 +546,9 @@ void testSDCard(void) {
     Serial.println("Error while opening /test.txt");
     error(3);
   }
+ 
+ // Add a separator file (empty but with nice title) so the user knows a new DAQ session started
+ createNewSeparatorFile();
 
 }
 
@@ -663,6 +667,42 @@ void error(uint8_t errno) { // blink out an error code
       delay(200);
     }
   }
+}
+
+//******************************************************************************************
+void createNewSeparatorFile(void) {
+
+  // We do NOT increment the file counter because this file is not for data
+  
+ // To name the file we need to know the date : ask the RTC
+  timestampForFileName = rtc.now(); // MUST be global!!!!! or it won't update
+  fileName = ""; // Reset the filename
+  fileName += "/"; // To tell it to put in the root folder, absolutely necessary
+
+  char timeStamp[sizeof(timeStampFormat_FileName)]; // We are obliged to do that horror because the method "toString" input parameter is also the output
+  strncpy(timeStamp, timeStampFormat_FileName, sizeof(timeStampFormat_FileName));
+  fileName += timestampForFileName.toString(timeStamp);
+
+  fileName += "--------------------------------------------------"; // Add a separator marker after the date <---- TODO: put that in the header file
+  
+  fileName += ".txt"; //add the extension (we do bad things but we do have principles)
+
+
+   if (SD.exists(fileName)) {
+      Serial.print("Looks like a file already exits on the SD card with that name: ");
+      Serial.println(fileName);
+    }
+
+  // Open the file. note that only one file can be open at a time,
+  // so you have to close this one before opening another.
+  Serial.print("Creating this SEPARATOR file on the SD card: ");
+  Serial.println(fileName);
+  dataFile = SD.open(fileName, FILE_WRITE);
+ 
+ // Close this file immediately so there are no access problem
+ // This file is SUPPOSED to be empty. The Matlab parser code will IGNORE it
+ dataFile.close();
+
 }
 
 
