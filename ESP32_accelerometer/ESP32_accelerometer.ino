@@ -19,14 +19,14 @@
 * Notes
 *
 *
-* Ressources
+* Ressources (Boards + Libraries Manager)
 *
 *
 SD card:        https://learn.adafruit.com/adafruit-adalogger-featherwing/using-the-sd-card
 RTC:            https://learn.adafruit.com/adafruit-adalogger-featherwing/adafruit2-rtc-with-arduino
 IMU: lsm6ds33:  https://www.adafruit.com/product/4480 Adafruit Guide: https://learn.adafruit.com/lsm6ds33-6-dof-imu=accelerometer-gyro
 *
-*Adafruit HUZZAH32 – ESP32 Feather Board https://www.adafruit.com/product/3405
+*Adafruit HUZZAH32 – Adafruit ESP32 Feather Board https://www.adafruit.com/product/3405 (https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json)
 *Adalogger FeatherWing - RTC + SD Add-on For All Feather Boards
 *   -> I2C real time clock (PCF8523)
 *   -> microSD socket that connects to the SPI port pins (+ extra pin for CS)
@@ -102,7 +102,7 @@ void testSDCard                     (void);                 // Test that the SD 
 void testRTC                        (void);                 // Test that the RTC can be accessed
 void createNewFile                  (void);                 // Create a name a new DATA file on the SD card, file variable is global
 void closeFile                      (void);                 // Close the file currently being used, on the SD card, file variable is global // <Not used>
-void error                          (uint8_t errno);       // <---- TODO edit this
+void blinkAnError                   (uint8_t errno);        // Use an on-board LED (the red one close to the micro USB connector, left of the enclosure) to signal errors (RTC/SD)
 void createNewSeparatorFile         (void);                 // Create a name a new SEPARATOR file on the SD card and close it immediatly (just a beautifier)
 
 // -------------------------- Set up --------------------------
@@ -515,15 +515,15 @@ void testSDCard(void) {
 	// see if the card is present and can be initialized:
 	if (!SD.begin(PIN_CS_SD)) {
 		Serial.println("Card failed, or not present");
-		error(2);
+		blinkAnError(2);
 		// Don't do anything more: infinite loop just here
 		while (1);
 	}
 	Serial.println("Card initialized");
 
 	if (SD.exists("/test.txt")) {
-		Serial.println("Looks like a test file already exits on the SD card");
-	}
+		Serial.println("Looks like a test file already exits on the SD card"); // Just a warning
+  }
 
 	// Create and open the test file. Note that only one file can be open at a time,
 	// so you have to close this one before opening another.
@@ -539,7 +539,7 @@ void testSDCard(void) {
 	// If the file isn't open, pop up an error:
 	else {
 		Serial.println("Error while opening /test.txt");
-		error(3);
+		blinkAnError(3);
 	}
 
 	// Add a separator file (empty but with nice title) so the user knows a new DAQ session started
@@ -559,7 +559,8 @@ void testRTC(void) {
 	}
 
 	if (!rtc.initialized() || rtc.lostPower()) {
-		Serial.println("RTC is NOT initialized, let's set the time!");
+		Serial.println("RTC is NOT initialized. Use the NTP sketch to set the time!");
+    blinkAnError(6);
 	}
 
 	// When the RTC was stopped and stays connected to the battery, it has
@@ -584,7 +585,7 @@ void testRTC(void) {
 	Serial.print(now.second(), DEC);
 	Serial.println();
 
-	delay(1000);
+	delay(1000); // Wait 1s so the user can see if the RTC is running by looking at the console
 
 	now = rtc.now();
 	Serial.print(now.year(), DEC);
@@ -600,30 +601,32 @@ void testRTC(void) {
 	Serial.print(now.second(), DEC);
 	Serial.println();
 
+  Serial.println("Please check");
 
 }
 
 //******************************************************************************************
 void createNewFile(void) {
 
-	cntFile ++; //increment the counter of file
-	// To name the file we need to know the date : ask the RTC
+	cntFile ++; // Increment the counter of files
+	
+  // To name the file we need to know the date : ask the RTC
 	timestampForFileName = rtc.now(); // MUST be global!!!!! or it won't update
-	fileName = ""; // Reset the filename
-	fileName += "/"; // To tell it to put in the root folder, absolutely necessary
+	fileName = "";                    // Reset the filename
+	fileName += "/";                  // To tell it to put in the root folder, absolutely necessary
 
 	char timeStamp[sizeof(timeStampFormat_FileName)]; // We are obliged to do that horror because the method "toString" input parameter is also the output
 	strncpy(timeStamp, timeStampFormat_FileName, sizeof(timeStampFormat_FileName));
 	fileName += timestampForFileName.toString(timeStamp);
 
-	fileName += "-"; //add a separator between datetime and filenumber
+	fileName += "-"; // Add a separator between datetime and filenumber
 
 	char buffer[5];
 	sprintf(buffer, "%05d", cntFile); //Making sure the file number is always printed with 5 digits
 	//  Serial.println(buffer);
 	fileName += String(buffer); 
 
-	fileName += ".txt"; //add the extension
+	fileName += ".txt"; // Add the file extension
 
 
 	if (SD.exists(fileName)) {
@@ -643,31 +646,41 @@ void createNewFile(void) {
 void closeFile(void) { // <Not used>
 	dataFile.close();
 	// TODO:
-	// 1) replace in the code
-	// 2) add more set in this functions
+	// 1) Replace in the code
+	// 2) Add more set in this functions
 	Serial.println("File closed");
 }
 
 //******************************************************************************************
-void error(uint8_t errno) { // blink out an error code
-	while(1) {
+void blinkAnError(uint8_t errno) {  // Use an on-board LED (the red one close to the micro USB connector, left of the enclosure) to signal errors (RTC/SD)
+	
+  //errno argument tells how many blinks per period to do. Must be  strictly less than 10
+  
+  while(1) { // Infinite loop: stay here until power cycle
 		uint8_t i;
+
+    // This part is executed errno times, quick blink
 		for (i=0; i<errno; i++) {
-			digitalWrite(13, HIGH);
+			digitalWrite(LED_BUILTIN, HIGH);
 			delay(100);
-			digitalWrite(13, LOW);
+			digitalWrite(LED_BUILTIN, LOW);
 			delay(100);
 		}
+
+
+    // This part is executed (10 - errno) times, led off (waiting to reblink)
 		for (i=errno; i<10; i++) {
 			delay(200);
 		}
+
+    // Total time spent is: errno * (100 + 100) + (10 - errno) * 200 = 2000ms
 	}
 }
 
 //******************************************************************************************
 void createNewSeparatorFile(void) {
 
-	// We do NOT increment the file counter because this file is not for data
+	// We do NOT increment the file counter because this file is NOT for data
 
 	// To name the file we need to know the date : ask the RTC
 	timestampForFileName = rtc.now(); // MUST be global!!!!! or it won't update

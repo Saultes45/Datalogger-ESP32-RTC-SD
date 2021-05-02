@@ -39,8 +39,8 @@
 // Global
 #define CONSOLE_BAUD_RATE             115200  // Baudrate in [bauds] for serial communication to the console (used for debug only) TX0(GPIO_1) RX0(GPIO_3)
 #define WAIT_LOOP                     100     // For the delay to wait at the end of the loop
-#define CONSOLE_DELAY				  1000
-//#define SERIAL_DEBUG        				  // If defined then the ESP32 will verbose to the console
+#define CONSOLE_DELAY				          1000
+//#define SERIAL_DEBUG        				        // If defined then the ESP32 will verbose to the console
 
 
 // IMU (if the communication SPI pins are soldered, we chose I2C)
