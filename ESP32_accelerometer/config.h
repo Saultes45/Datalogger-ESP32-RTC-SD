@@ -33,6 +33,9 @@
 
 // -------------------------- Defines --------------------------
 
+
+#define UNIT_NUMBER                   1       // Number of the unit to identify the files (should be 1, 2, 3, or 4)
+
 // CPU frequency
 #define TARGET_CPU_FREQUENCY          80
 
@@ -50,7 +53,7 @@
 //#define LSM_MOSI 	11
 
 // SD
-#define USE_SD             		  		// If defined then the ESP32 will log data to SD card (if not it will just read IMU) // <Not coded yet>
+#define USE_SD             		  	// If defined then the ESP32 will log data to SD card (if not it will just read IMU) // <Not coded yet>
 #define PIN_CS_SD   		33     		// Chip Select (ie CS/SS) for SPI for SD card
 #define SOM_LOG     		'$'   		// Start of message indicator, mostly used for heath check (no checksum)
 #define FORMAT_TEMP 		1     		// Numbers significative digits for the TEMPERATURE

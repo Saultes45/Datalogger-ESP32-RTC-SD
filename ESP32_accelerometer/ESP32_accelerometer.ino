@@ -691,6 +691,10 @@ void createNewSeparatorFile(void) {
 	strncpy(timeStamp, timeStampFormat_FileName, sizeof(timeStampFormat_FileName));
 	fileName += timestampForFileName.toString(timeStamp);
 
+  fileName += "_";
+  fileName += UNIT_NUMBER; // Add the unit number to the file name to identify quickly from which unit the files associated to this session are from
+  fileName += "_";
+
 	fileName += SESSION_SEPARATOR_STRING; // Add a separator marker after the date
 
 	fileName += ".txt"; //add the extension (we do bad things but we do have principles)
