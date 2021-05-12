@@ -6,9 +6,9 @@
 *
 * Metadata
 * Written by    : Iain Billington, Nathanaël Esnault
-* Verified by   : N/A
+* Verified by   : Nathanaël Esnault
 * Creation date : 2021-04-07
-* Version       : 0.1 (finished on ...)
+* Version       : 1.1 (finished on 2021-05-12)
 * Modifications :
 * Known bugs    :
 *
@@ -22,15 +22,16 @@
 * Ressources (Boards + Libraries Manager)
 *
 *
-SD card:        https://learn.adafruit.com/adafruit-adalogger-featherwing/using-the-sd-card
-RTC:            https://learn.adafruit.com/adafruit-adalogger-featherwing/adafruit2-rtc-with-arduino
-IMU: lsm6ds33:  https://www.adafruit.com/product/4480 Adafruit Guide: https://learn.adafruit.com/lsm6ds33-6-dof-imu=accelerometer-gyro
+* SD card:        https://learn.adafruit.com/adafruit-adalogger-featherwing/using-the-sd-card
+* RTC:            https://learn.adafruit.com/adafruit-adalogger-featherwing/adafruit2-rtc-with-arduino
+* IMU: lsm6ds33:  https://www.adafruit.com/product/4480 Adafruit Guide: https://learn.adafruit.com/lsm6ds33-6-dof-imu=accelerometer-gyro
 *
-*Adafruit HUZZAH32 – Adafruit ESP32 Feather Board https://www.adafruit.com/product/3405 (https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json)
-*Adalogger FeatherWing - RTC + SD Add-on For All Feather Boards
+* Adafruit ESP32 Feather Board (Adafruit HUZZAH32) https://www.adafruit.com/product/3405
+* JSON for IDE pref: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+* Adalogger FeatherWing - RTC + SD Add-on For All Feather Boards
 *   -> I2C real time clock (PCF8523)
 *   -> microSD socket that connects to the SPI port pins (+ extra pin for CS)
-*Adafruit LSM6DS33 - 6 DoF IMU - Accelerometer and Gyroscope - STEMMA QT / Qwiic
+* Adafruit LSM6DS33 - 6 DoF IMU - Accelerometer and Gyroscope - STEMMA QT / Qwiic
 *
 * IMU datasheet https://www.st.com/resource/en/datasheet/lsm6ds33.pdf
 *
@@ -61,7 +62,7 @@ IMU: lsm6ds33:  https://www.adafruit.com/product/4480 Adafruit Guide: https://le
 #include <SD.h>
 
 //RTC
-#include <RTClib.h> // use the one from Adafruit
+#include <RTClib.h> // use the one from Adafruit, not the forks with the same name
 
 
 // -------------------------- Defines --------------------------
@@ -214,8 +215,9 @@ void loop() {
 
 	// Build the String we are going to write to the SD card with the raw IMU data
 	//----------------------------------------------------------------------------
-	dataString += String(temp.temperature, FORMAT_TEMP); // add to the data to write
-	dataString += FORMAT_SEP;
+	
+  //dataString += String(temp.temperature, FORMAT_TEMP); // add to the data to write
+	//dataString += FORMAT_SEP;
 
 	/* Display the results (acceleration is measured in m/s^2) */
 	dataString += String(accel.acceleration.x, FORMAT_ACC); // add to the data to write
