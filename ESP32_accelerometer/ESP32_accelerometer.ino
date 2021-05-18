@@ -7,7 +7,7 @@
 * Metadata
 * Written by    : Iain Billington, Nathanaël Esnault
 * Verified by   : Nathanaël Esnault
-* Creation date : 2021-04-07
+* Creation date : 2021-05-19
 * Version       : 1.2 (finished on 2021-05-12)
 * Modifications :
 * Known bugs    :
@@ -87,6 +87,9 @@ DateTime            timestampForFileName;  // MUST be global!!!!! or it won't up
 // SD
 File                dataFile;              // Only 1 file can be opened at a certain time, <KEEP GLOBAL>
 
+volatile uint8_t isrExecTaskFlag = 0;        // Indicates if the required time has elapsed <KEEP GLOBAL> <KEEP VOLATILE>
+hw_timer_t * timerTask = NULL;
+
 // -------------------------- ISR ----------------
 // Watchdog
 void IRAM_ATTR resetModule() {
@@ -94,15 +97,22 @@ void IRAM_ATTR resetModule() {
   esp_restart();
 }
 
-// FreeRTOS
-#if CONFIG_FREERTOS_UNICORE
-#define ARDUINO_RUNNING_CORE 0
-#else
-#define ARDUINO_RUNNING_CORE 1
-#endif
+// Tells when to execute the task
+void IRAM_ATTR onTimer(){
+  // Increment the counter and set the time of ISR
 
-// define a single task for reading IMU + log to SD 
-void TaskLog( void *pvParameters );
+  // Set the flag that is going to be red in the loop
+  isrExecTaskFlag = 1; 
+  
+  //portENTER_CRITICAL_ISR(&timerMux);
+  //isrCounter++;
+  //lastIsrAt = millis();
+  //portEXIT_CRITICAL_ISR(&timerMux);
+  
+  // Give a semaphore that we can check in the loop
+  //xSemaphoreGiveFromISR(timerSemaphore, NULL);
+}
+
 
 // -------------------------- Functions declaration --------------------------
 void changeCPUFrequency             (void);                 // Change the CPU frequency and report about it over serial
@@ -115,6 +125,8 @@ void createNewFile                  (void);                 // Create a name a n
 void closeFile                      (void);                 // Close the file currently being used, on the SD card, file variable is global // <Not used>
 void blinkAnError                   (uint8_t errno);        // Use an on-board LED (the red one close to the micro USB connector, left of the enclosure) to signal errors (RTC/SD)
 void createNewSeparatorFile         (void);                 // Create a name a new SEPARATOR file on the SD card and close it immediatly (just a beautifier)
+
+void TaskLog                        (void *pvParameters);   // Define a single task for reading IMU + log to SD 
 
 // -------------------------- Set up --------------------------
 
@@ -156,10 +168,29 @@ void setup() {
   timer = timerBegin(0, 80, true);                  //timer 0, div 80
   timerAttachInterrupt(timer, &resetModule, true);  //attach callback
   timerAlarmWrite(timer, wdtTimeout * 1000, false); //set time in us
-  timerAlarmEnable(timer);                          //enable interrupt
+  // Enable all the ISR later
+  //timerAlarmEnable(timer);                          //enable interrupt
 
+  // Starting the task timer
+  //------------------------
+  // Use 2nd timer out of 4 (counted from zero)
+  // Set 80 divider for prescaler
+  timerTask = timerBegin(0, 80, true);
+  // Attach onTimer function to this timer
+  timerAttachInterrupt(timerTask, &onTimer, true);
+  // Set alarm to call onTimer function every second (value in microseconds).
+  // Repeat the ISR function (third parameter)
+  timerAlarmWrite(timerTask, US_TO_MS_CONVERSION * WAIT_LOOP_MS, true); // This should give us an accurate 10Hz
+
+
+  // Enable all ISRs
+  //----------------
   Serial.println("And here, we, go, ...");
   // Do not go gentle into that good night
+
+  timerAlarmEnable(timerTask); // Task
+  timerAlarmEnable(timer);     // Watchdog
+  
 
   // Set up the loop as a FreeRTOS task to run independently
   //---------------------------------------------------------
@@ -193,6 +224,10 @@ void TaskLog(void *pvParameters)  // This is a task.
 
   for (;;) // A task should never return or exit
   {
+    if (isrExecTaskFlag)
+    {
+      isrExecTaskFlag = 0; // Reset the flag
+    
     // Create a string for assembling the data to log
     String dataString  = "";
     String myTimestamp = "";
@@ -349,8 +384,9 @@ void TaskLog(void *pvParameters)  // This is a task.
   
     // Wait before logging new sensor data
     //------------------------------------
-    //delay(WAIT_LOOP); //  TODO: use freeRTOS tasks: https://randomnerdtutorials.com/esp32-dual-core-arduino-ide/
-    vTaskDelay(WAIT_LOOP);  // One tick delay (15ms) in between reads for stability // <--- Who is the muppet that wrote that in an official Arduino IDE example?
+    //delay(WAIT_LOOP_MS); //  freeRTOS + Timer ISR used instead
+    vTaskDelay(1);  // One tick delay (15ms) in between reads for stability // <--- Who is the muppet that wrote that in an official Arduino IDE example?
+  }
   }
 }
 
