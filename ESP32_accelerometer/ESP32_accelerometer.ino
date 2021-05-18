@@ -8,7 +8,7 @@
 * Written by    : Iain Billington, Nathanaël Esnault
 * Verified by   : Nathanaël Esnault
 * Creation date : 2021-04-07
-* Version       : 1.1 (finished on 2021-05-12)
+* Version       : 1.2 (finished on 2021-05-12)
 * Modifications :
 * Known bugs    :
 *
@@ -70,32 +70,39 @@
 // -------------------------- Structs --------------------------
 // All moved in "config.h" now
 
+// -------------------------- Classes -------------------------
+// NONE
+
 // -------------------------- Global variables ----------------
+// Most are moved in "config.h" now
 
 //IMU
-Adafruit_LSM6DS33 lsm6ds33;
+Adafruit_LSM6DS33   lsm6ds33;
 
 //RTC
-RTC_PCF8523 rtc;
-DateTime time_loop;             // MUST be global!!!!! or it won't update
-DateTime timestampForFileName;  // MUST be global!!!!! or it won't update
+RTC_PCF8523         rtc;
+DateTime            time_loop;             // MUST be global!!!!! or it won't update
+DateTime            timestampForFileName;  // MUST be global!!!!! or it won't update
 
-//SD card
-// 1 file = 1.67min recording @ 10Hz = 1,000 lines per files ~ 85KB
-// If we lose a file, or it gets corrupted, we only lose 1.67min worth of data
-uint16_t  cntLinesInFile  = 0; // Written at the end of a file for check (36,000 < 65,535)
-uint32_t  cntFile         = 0; // Counter that counts the files written in the SD card this session (we don't include prvious files), included in the name of the file, can handle 0d to 99999d (need 17 bits)
-File      dataFile;            // Only 1 file can be opened at a certain time, <KEEP GLOBAL>
-String    fileName        = "";// Name of the current opened file on the SD card
+// SD
+File                dataFile;              // Only 1 file can be opened at a certain time, <KEEP GLOBAL>
 
+// -------------------------- ISR ----------------
 // Watchdog
 void IRAM_ATTR resetModule() {
   ets_printf("Problem! Watchdog trigger: Rebooting...\r\n");
   esp_restart();
 }
 
-// -------------------------- Classes -------------------------
-// NONE
+// FreeRTOS
+#if CONFIG_FREERTOS_UNICORE
+#define ARDUINO_RUNNING_CORE 0
+#else
+#define ARDUINO_RUNNING_CORE 1
+#endif
+
+// define a single task for reading IMU + log to SD 
+void TaskLog( void *pvParameters );
 
 // -------------------------- Functions declaration --------------------------
 void changeCPUFrequency             (void);                 // Change the CPU frequency and report about it over serial
@@ -124,6 +131,9 @@ void setup() {
 
 	displayWakeUpReason();
 	changeCPUFrequency();
+
+ // External hardaware initialisation and test
+ //-------------------------------------------
 	// The order of the last 3 tests can be changed
 	testIMU();
 	testSDCard();
@@ -139,178 +149,214 @@ void setup() {
 	delay(10);                       // Wait a bit
 
   Serial.println("This might be the last transmission to the console if you turned verbose OFF");
-  Serial.println("And here, we, go, ...");
-  // Do not go gentle into that good night
-
+  
+  // Starting the night watch (watchdog)
+  //-------------------------------------
+  // Remember to hold the door
   timer = timerBegin(0, 80, true);                  //timer 0, div 80
   timerAttachInterrupt(timer, &resetModule, true);  //attach callback
   timerAlarmWrite(timer, wdtTimeout * 1000, false); //set time in us
   timerAlarmEnable(timer);                          //enable interrupt
-}
+
+  Serial.println("And here, we, go, ...");
+  // Do not go gentle into that good night
+
+  // Set up the loop as a FreeRTOS task to run independently
+  //---------------------------------------------------------
+  xTaskCreatePinnedToCore(
+    TaskLog
+    ,  "TaskLog"   // A name just for humans
+    ,  1024*10        // This stack size can be checked & adjusted by reading the Stack Highwater
+    ,  NULL
+    ,  2  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
+    ,  NULL 
+    ,  ARDUINO_RUNNING_CORE);
+  
+} // END OF SETUP
 
 // -------------------------- Loop --------------------------
 void loop() {
-
-	// Create a string for assembling the data to log:
-	String dataString  = "";
-	String myTimestamp = "";
-
-	// Add start of message charachter
-	//--------------------------------
-	dataString += SOM_LOG;
-
-	// Read the RTC time
-	//------------------------------------------
-	time_loop = rtc.now(); // MUST be global!!!!! or it won't update
-	//  DateTime now = DateTime(2000,01,01, 00, 00, 00); // DEBUG
-
-	//source https://github.com/adafruit/RTClib/blob/master/examples/toString/toString.ino
-	// HERE -> look for user "cattledog" : https://forum.arduino.cc/t/now-rtc-gets-stuck-if-called-in-setup/632619/3 
-	//buffer can be defined using following combinations:
-	// hh 	- hour with a leading zero (00 to 23)
-	// mm 	- minute with a leading zero (00 to 59)
-	// ss 	- whole second with a leading zero where applicable (00 to 59)
-	// YYYY - year as four digit number
-	// YY 	- year as two digit number (00-99)
-	// MM 	- month as number with a leading zero (01-12)
-	// MMM 	- abbreviated English month name ('Jan' to 'Dec')
-	// DD 	- day as number with a leading zero (01 to 31)
-	// DDD 	- abbreviated English day name ('Mon' to 'Sun')
-
-	char timeStamp[sizeof(timeStampFormat_Line)]; // We are obliged to do that horror because the method "toString" input parameter is also the output
-	strncpy(timeStamp, timeStampFormat_Line, sizeof(timeStampFormat_Line));
-	dataString += time_loop.toString(timeStamp);
-
-	dataString += FORMAT_SEP;
-
-#ifdef SERIAL_DEBUG
-	Serial.print("Time from RTC: ");
-	Serial.println(time_loop.toString(timeStamp));
-#endif
-
-	// Read accelerometer data
-	//------------------------
-
-	// Get the IMU data
-	//-----------------
-	sensors_event_t accel;
-	sensors_event_t gyro;
-	sensors_event_t temp;
-	lsm6ds33.getEvent( & accel, & gyro, & temp);
-
-	// Print the raw IMU to the console if required
-	//---------------------------------------------
-#ifdef SERIAL_DEBUG
-	Serial.print("\t\tTemperature ");
-	Serial.print(temp.temperature);
-	Serial.println(" deg C");
-	Serial.print("\t\tAccel X: ");
-	Serial.print(accel.acceleration.x);
-	Serial.print(" \tY: ");
-	Serial.print(accel.acceleration.y);
-	Serial.print(" \tZ: ");
-	Serial.print(accel.acceleration.z);
-	Serial.println(" m/s^2 ");
-	Serial.print("\t\tGyro X: ");
-	Serial.print(gyro.gyro.x);
-	Serial.print(" \tY: ");
-	Serial.print(gyro.gyro.y);
-	Serial.print(" \tZ: ");
-	Serial.print(gyro.gyro.z);
-	Serial.println(" radians/s ");
-	Serial.println();
-#endif
-
-	// Build the String we are going to write to the SD card with the raw IMU data
-	//----------------------------------------------------------------------------
-	
-  //dataString += String(temp.temperature, FORMAT_TEMP); // add to the data to write
-	//dataString += FORMAT_SEP;
-
-	/* Display the results (acceleration is measured in m/s^2) */
-	dataString += String(accel.acceleration.x, FORMAT_ACC); // add to the data to write
-	dataString += FORMAT_SEP;
-
-	dataString += String(accel.acceleration.y, FORMAT_ACC); // add to the data to write
-	dataString += FORMAT_SEP;
-
-	dataString += String(accel.acceleration.z, FORMAT_ACC); // add to the data to write
-	dataString += FORMAT_SEP;
-
-	/* Display the results (rotation is measured in rad/s) */
-	dataString += String(gyro.gyro.x, FORMAT_GYR); // add to the data to write
-	dataString += FORMAT_SEP;
-
-	dataString += String(gyro.gyro.y, FORMAT_GYR); // add to the data to write
-	dataString += FORMAT_SEP;
-
-	dataString += String(gyro.gyro.z, FORMAT_GYR); // add to the data to write
-	//dataString += FORMAT_END; // Actually not needed since the function to write to the SD card aleady do that
-
-#ifdef SERIAL_DEBUG
-	Serial.println("Data going to SD card: ");
-	Serial.println(dataString);
-#endif
-
-	// Log data in the SD card
-	//------------------------
-
-	// Check if the file is available
-	if (dataFile) {
-    if (cntLinesInFile >= MAX_LINES_PER_FILES - 1) { // Check if we have reached the max. number of lines per file
-    // Write to the file w/out the "\r\n"
-    dataFile.print(dataString);
-    // Close the file
-    dataFile.close();
-    // Reset the line counter
-    cntLinesInFile = 0;
-    // Create a new file
-    createNewFile();
-    #ifdef SERIAL_DEBUG
-      Serial.println("Reached the max number of lines per file, starting a new one");
-    #endif
-  }
-  else
-  {
-    dataFile.println(dataString);
-		cntLinesInFile++; // Increment the lines-in-current-file counter
-
-		#ifdef SERIAL_DEBUG
-      Serial.println("Data have been written");
-      Serial.print("Current number of lines: ");
-      Serial.print(cntLinesInFile);
-      Serial.print("/");
-      Serial.println(MAX_LINES_PER_FILES);
-		#endif
-  }
-		
-	}
-	// If the file isn't open, pop up an error
-	else {
-		#ifdef SERIAL_DEBUG
-      Serial.print("Error writting to the file: ");
-      Serial.println(fileName);
-		#endif
-		fileName = "";        // Reset the filename
-		cntLinesInFile = 0;   // Reset the lines-in-current-file counter
-	}
-
-	/*
-  * At this place, the line counter should never be 0 except if there has been a problem with opening the file
-  * This is why we can use it as a check
-  */
-
-  // Reset the timer (i.e. feed the watchdog)
-  //------------------------------------------  
-  timerWrite(timer, 0);
-  delay(3000); // DEBUG: Trigger the watchdog
-
-	// Wait before logging new sensor data
-	//------------------------------------
-	delay(WAIT_LOOP); //  TODO: use freeRTOS tasks: https://randomnerdtutorials.com/esp32-dual-core-arduino-ide/
-
+  // Everything is put in the task now for better timing accuracy. 
+  // We use FreeRTOS, even better than timers	
 }
 
+
+/*--------------------------------------------------*/
+/*---------------------- Tasks ---------------------*/
+/*--------------------------------------------------*/
+//******************************************************************************************
+void TaskLog(void *pvParameters)  // This is a task.
+{
+  (void) pvParameters;
+
+  // Initialisation
+
+  for (;;) // A task should never return or exit
+  {
+    // Create a string for assembling the data to log
+    String dataString  = "";
+    String myTimestamp = "";
+  
+    // Add start of message charachter
+    //--------------------------------
+    dataString += SOM_LOG;
+  
+    // Read the RTC time
+    //------------------------------------------
+    time_loop = rtc.now(); // MUST be global!!!!! or it won't update
+    //  DateTime now = DateTime(2000,01,01, 00, 00, 00); // DEBUG
+  
+    //source https://github.com/adafruit/RTClib/blob/master/examples/toString/toString.ino
+    // HERE -> look for user "cattledog" : https://forum.arduino.cc/t/now-rtc-gets-stuck-if-called-in-setup/632619/3 
+    //buffer can be defined using following combinations:
+    // hh   - hour with a leading zero (00 to 23)
+    // mm   - minute with a leading zero (00 to 59)
+    // ss   - whole second with a leading zero where applicable (00 to 59)
+    // YYYY - year as four digit number
+    // YY   - year as two digit number (00-99)
+    // MM   - month as number with a leading zero (01-12)
+    // MMM  - abbreviated English month name ('Jan' to 'Dec')
+    // DD   - day as number with a leading zero (01 to 31)
+    // DDD  - abbreviated English day name ('Mon' to 'Sun')
+  
+    char timeStamp[sizeof(timeStampFormat_Line)]; // We are obliged to do that horror because the method "toString" input parameter is also the output
+    strncpy(timeStamp, timeStampFormat_Line, sizeof(timeStampFormat_Line));
+    dataString += time_loop.toString(timeStamp);
+  
+    dataString += FORMAT_SEP;
+  
+  #ifdef SERIAL_DEBUG
+    Serial.print("Time from RTC: ");
+    Serial.println(time_loop.toString(timeStamp));
+  #endif
+  
+    // Read accelerometer data
+    //------------------------
+  
+    // Get the IMU data
+    //-----------------
+    sensors_event_t accel;
+    sensors_event_t gyro;
+    sensors_event_t temp;
+    lsm6ds33.getEvent( & accel, & gyro, & temp);
+  
+    // Print the raw IMU to the console if required
+    //---------------------------------------------
+  #ifdef SERIAL_DEBUG
+    Serial.print("\t\tTemperature ");
+    Serial.print(temp.temperature);
+    Serial.println(" deg C");
+    Serial.print("\t\tAccel X: ");
+    Serial.print(accel.acceleration.x);
+    Serial.print(" \tY: ");
+    Serial.print(accel.acceleration.y);
+    Serial.print(" \tZ: ");
+    Serial.print(accel.acceleration.z);
+    Serial.println(" m/s^2 ");
+    Serial.print("\t\tGyro X: ");
+    Serial.print(gyro.gyro.x);
+    Serial.print(" \tY: ");
+    Serial.print(gyro.gyro.y);
+    Serial.print(" \tZ: ");
+    Serial.print(gyro.gyro.z);
+    Serial.println(" radians/s ");
+    Serial.println();
+  #endif
+  
+    // Build the String we are going to write to the SD card with the raw IMU data
+    //----------------------------------------------------------------------------
+    
+    //dataString += String(temp.temperature, FORMAT_TEMP); // add to the data to write
+    //dataString += FORMAT_SEP;
+  
+    /* Display the results (acceleration is measured in m/s^2) */
+    dataString += String(accel.acceleration.x, FORMAT_ACC); // add to the data to write
+    dataString += FORMAT_SEP;
+  
+    dataString += String(accel.acceleration.y, FORMAT_ACC); // add to the data to write
+    dataString += FORMAT_SEP;
+  
+    dataString += String(accel.acceleration.z, FORMAT_ACC); // add to the data to write
+    dataString += FORMAT_SEP;
+  
+    /* Display the results (rotation is measured in rad/s) */
+    dataString += String(gyro.gyro.x, FORMAT_GYR); // add to the data to write
+    dataString += FORMAT_SEP;
+  
+    dataString += String(gyro.gyro.y, FORMAT_GYR); // add to the data to write
+    dataString += FORMAT_SEP;
+  
+    dataString += String(gyro.gyro.z, FORMAT_GYR); // add to the data to write
+    //dataString += FORMAT_END; // Actually not needed since the function to write to the SD card aleady do that
+  
+  #ifdef SERIAL_DEBUG
+    Serial.println("Data going to SD card: ");
+    Serial.println(dataString);
+  #endif
+  
+    // Log data in the SD card
+    //------------------------
+  
+    // Check if the file is available
+    if (dataFile) {
+      if (cntLinesInFile >= MAX_LINES_PER_FILES - 1) { // Check if we have reached the max. number of lines per file
+      // Write to the file w/out the "\r\n"
+      dataFile.print(dataString);
+      // Close the file
+      dataFile.close();
+      // Reset the line counter
+      cntLinesInFile = 0;
+      // Create a new file
+      createNewFile();
+      #ifdef SERIAL_DEBUG
+        Serial.println("Reached the max number of lines per file, starting a new one");
+      #endif
+    }
+    else
+    {
+      dataFile.println(dataString);
+      cntLinesInFile++; // Increment the lines-in-current-file counter
+  
+      #ifdef SERIAL_DEBUG
+        Serial.println("Data have been written");
+        Serial.print("Current number of lines: ");
+        Serial.print(cntLinesInFile);
+        Serial.print("/");
+        Serial.println(MAX_LINES_PER_FILES);
+      #endif
+    }
+      
+    }
+    // If the file isn't open, pop up an error
+    else {
+      #ifdef SERIAL_DEBUG
+        Serial.print("Error writting to the file: ");
+        Serial.println(fileName);
+      #endif
+      fileName = "";        // Reset the filename
+      cntLinesInFile = 0;   // Reset the lines-in-current-file counter
+    }
+  
+    /*
+    * At this place, the line counter should never be 0 except if there has been a problem with opening the file
+    * This is why we can use it as a check
+    */
+  
+    // Reset the timer (i.e. feed the watchdog)
+    //------------------------------------------  
+    timerWrite(timer, 0);
+    //delay(3000); // DEBUG: Trigger the watchdog
+  
+    // Wait before logging new sensor data
+    //------------------------------------
+    //delay(WAIT_LOOP); //  TODO: use freeRTOS tasks: https://randomnerdtutorials.com/esp32-dual-core-arduino-ide/
+    vTaskDelay(WAIT_LOOP);  // One tick delay (15ms) in between reads for stability // <--- Who is the muppet that wrote that in an official Arduino IDE example?
+  }
+}
+
+/*--------------------------------------------------*/
+/*-------------------- Functions -------------------*/
+/*--------------------------------------------------*/
 //******************************************************************************************
 void changeCPUFrequency(void) {
 	Serial.println("----------------------------------------");
@@ -649,14 +695,18 @@ void createNewFile(void) {
 
 
 	if (SD.exists(fileName)) {
-		Serial.print("Looks like a file already exits on the SD card with that name: ");
-		Serial.println(fileName);
+    #ifdef SERIAL_DEBUG
+  		Serial.print("Looks like a file already exits on the SD card with that name: ");
+  		Serial.println(fileName);
+   #endif
 	}
 
-	// open the file. note that only one file can be open at a time,
+	// Open the file. Note that only one file can be open at a time,
 	// so you have to close this one before opening another.
-	Serial.print("Creating the following file on the SD card: ");
-	Serial.println(fileName);
+  #ifdef SERIAL_DEBUG
+  	Serial.print("Creating the following file on the SD card: ");
+  	Serial.println(fileName);
+ #endif
 	dataFile = SD.open(fileName, FILE_WRITE);
 
 }

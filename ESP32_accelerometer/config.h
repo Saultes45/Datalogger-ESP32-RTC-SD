@@ -52,7 +52,7 @@
 //#define LSM_MISO 	12
 //#define LSM_MOSI 	11
 
-// SD
+// LOG
 #define USE_SD             		  	// If defined then the ESP32 will log data to SD card (if not it will just read IMU) // <Not coded yet>
 #define PIN_CS_SD   		33     		// Chip Select (ie CS/SS) for SPI for SD card
 #define SOM_LOG     		'$'   		// Start of message indicator, mostly used for heath check (no checksum)
@@ -66,13 +66,23 @@
 
 // -------------------------- Global variables ----------------
 
-// SD
+// LOG
 char timeStampFormat_Line[]     = "YYYY_MM_DD__hh_mm_ss"; // naming convention for EACH LINE OF THE FILE logged to the SD card
 char timeStampFormat_FileName[] = "YYYY_MM_DD__hh_mm_ss"; // naming convention for EACH FILE NAME created on the SD card
 
 // Watchdog
 hw_timer_t *timer     = NULL;
 const int wdtTimeout  = 3000;    // Time in ms to trigger the watchdog
+
+
+//SD card
+// 1 file = 1.67min recording @ 10Hz = 1,000 lines per files ~ 75KB
+// If we lose a file, or it gets corrupted, we only lose 1.67min worth of data
+uint16_t  cntLinesInFile  = 0; // Written at the end of a file for check (36,000 < 65,535)
+uint32_t  cntFile         = 0; // Counter that counts the files written in the SD card this session (we don't include prvious files), included in the name of the file, can handle 0d to 99999d (need 17 bits)
+String    fileName        = "";// Name of the current opened file on the SD card
+
+
 
 // -------------------------- Structs --------------------------
 //NONE
