@@ -61,12 +61,18 @@
 #define FORMAT_GYR  		6     		// Numbers significative digits for the GYROSCOPES
 #define FORMAT_SEP  		','    		// Separator between the different files so that the data can be read/parsed by softwares
 #define FORMAT_END  		"\r\n"  	// End of line for 1 aquisition, to be printed in the SD card // <Not used>
-#define MAX_LINES_PER_FILES 1000//36000 // Maximum number of lines that we want stored in 1 SD card file. It should be about 1h worth
+#define MAX_LINES_PER_FILES 100//18000 // Maximum number of lines that we want stored in 1 SD card file. It should be about 1h worth
 #define SESSION_SEPARATOR_STRING "--------------------------------------------------"
 
+// -------------------------- Global variables ----------------
+
+// SD
 char timeStampFormat_Line[]     = "YYYY_MM_DD__hh_mm_ss"; // naming convention for EACH LINE OF THE FILE logged to the SD card
 char timeStampFormat_FileName[] = "YYYY_MM_DD__hh_mm_ss"; // naming convention for EACH FILE NAME created on the SD card
 
+// Watchdog
+hw_timer_t *timer     = NULL;
+const int wdtTimeout  = 3000;    // Time in ms to trigger the watchdog
 
 // -------------------------- Structs --------------------------
 //NONE

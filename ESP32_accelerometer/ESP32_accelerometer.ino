@@ -61,9 +61,8 @@
 #include <SPI.h>
 #include <SD.h>
 
-//RTC
+// RTC
 #include <RTClib.h> // use the one from Adafruit, not the forks with the same name
-
 
 // -------------------------- Defines --------------------------
 // All moved in "config.h" now
@@ -89,7 +88,11 @@ uint32_t  cntFile         = 0; // Counter that counts the files written in the S
 File      dataFile;            // Only 1 file can be opened at a certain time, <KEEP GLOBAL>
 String    fileName        = "";// Name of the current opened file on the SD card
 
-
+// Watchdog
+void IRAM_ATTR resetModule() {
+  ets_printf("Problem! Watchdog trigger: Rebooting...\r\n");
+  esp_restart();
+}
 
 // -------------------------- Classes -------------------------
 // NONE
@@ -112,7 +115,7 @@ void setup() {
 	Serial.begin(CONSOLE_BAUD_RATE); //Begin serial communication (USB)
 	pinMode(LED_BUILTIN, OUTPUT);   //Set up the on-board LED (RED, close to the uUSB port)
 
-	// Indicates the start of the setup with the red on-board LED
+	// Indicate the start of the setup with the red on-board LED
 	//------------------------------------------------------------
 	digitalWrite(LED_BUILTIN, HIGH);   // Turn the LED ON
 	delay(10);                         // Wait a bit
@@ -135,9 +138,14 @@ void setup() {
 	digitalWrite(LED_BUILTIN, LOW);  // Turn the LED OFF
 	delay(10);                       // Wait a bit
 
-  Serial.println("This might be the last transmission to the console if you tourned verbose OFF");
+  Serial.println("This might be the last transmission to the console if you turned verbose OFF");
   Serial.println("And here, we, go, ...");
   // Do not go gentle into that good night
+
+  timer = timerBegin(0, 80, true);                  //timer 0, div 80
+  timerAttachInterrupt(timer, &resetModule, true);  //attach callback
+  timerAlarmWrite(timer, wdtTimeout * 1000, false); //set time in us
+  timerAlarmEnable(timer);                          //enable interrupt
 }
 
 // -------------------------- Loop --------------------------
@@ -247,10 +255,24 @@ void loop() {
 	// Log data in the SD card
 	//------------------------
 
-	// If the file is available, write to it:
+	// Check if the file is available
 	if (dataFile) {
-		dataFile.println(dataString);
-		//dataFile.close();
+    if (cntLinesInFile >= MAX_LINES_PER_FILES - 1) { // Check if we have reached the max. number of lines per file
+    // Write to the file w/out the "\r\n"
+    dataFile.print(dataString);
+    // Close the file
+    dataFile.close();
+    // Reset the line counter
+    cntLinesInFile = 0;
+    // Create a new file
+    createNewFile();
+    #ifdef SERIAL_DEBUG
+      Serial.println("Reached the max number of lines per file, starting a new one");
+    #endif
+  }
+  else
+  {
+    dataFile.println(dataString);
 		cntLinesInFile++; // Increment the lines-in-current-file counter
 
 		#ifdef SERIAL_DEBUG
@@ -260,6 +282,7 @@ void loop() {
       Serial.print("/");
       Serial.println(MAX_LINES_PER_FILES);
 		#endif
+  }
 		
 	}
 	// If the file isn't open, pop up an error
@@ -277,19 +300,13 @@ void loop() {
   * This is why we can use it as a check
   */
 
-	if ((cntLinesInFile >= MAX_LINES_PER_FILES) | (cntLinesInFile == 0)) {
-		// close the file
-		dataFile.close();
-		cntLinesInFile = 0;
-		// create a new file
-		createNewFile();
-		#ifdef SERIAL_DEBUG
-		  Serial.println("Reached the max number of lines per file, starting a new one");
-		#endif
-	}
+  // Reset the timer (i.e. feed the watchdog)
+  //------------------------------------------  
+  timerWrite(timer, 0);
+  delay(3000); // DEBUG: Trigger the watchdog
 
 	// Wait before logging new sensor data
-	//------------------------------------------
+	//------------------------------------
 	delay(WAIT_LOOP); //  TODO: use freeRTOS tasks: https://randomnerdtutorials.com/esp32-dual-core-arduino-ide/
 
 }
@@ -380,7 +397,7 @@ void testIMU(void) {
 		}
 	}
 
-	Serial.println("LSM6DS33 Found!");
+	Serial.println("LSM6DS33 has been found!");
 
 
 	Serial.println("LSM6DS33 sensors ranges");
@@ -523,13 +540,13 @@ void testSDCard(void) {
 	}
 	Serial.println("Card initialized");
 
-	if (SD.exists("/test.txt")) {
+	if (SD.exists("/00_test.txt")) { // The "00_" prefix is to make sure it is displayed by win 10 explorer at the top
 		Serial.println("Looks like a test file already exits on the SD card"); // Just a warning
   }
 
 	// Create and open the test file. Note that only one file can be open at a time,
 	// so you have to close this one before opening another.
-	File dataFile = SD.open("/test.txt", FILE_WRITE);
+	File dataFile = SD.open("/00_test.txt", FILE_WRITE);
 
 	// if the file is available, write to it:
 	if (dataFile) {
@@ -540,7 +557,7 @@ void testSDCard(void) {
 	}
 	// If the file isn't open, pop up an error:
 	else {
-		Serial.println("Error while opening /test.txt");
+		Serial.println("Error while opening /00_test.txt");
 		blinkAnError(3);
 	}
 
@@ -562,7 +579,7 @@ void testRTC(void) {
 
 	if (!rtc.initialized() || rtc.lostPower()) {
 		Serial.println("RTC is NOT initialized. Use the NTP sketch to set the time!");
-    blinkAnError(6);
+    //blinkAnError(6);
 	}
 
 	// When the RTC was stopped and stays connected to the battery, it has
@@ -571,7 +588,7 @@ void testRTC(void) {
 	rtc.start();
 
 	Serial.println("Let's see if the RTC is running");
-	Serial.println("There should be about 1s drifference");
+	Serial.println("There should a difference of about 1s");
 	
 	DateTime now = rtc.now();
 	Serial.print(now.year(), DEC);
@@ -624,7 +641,7 @@ void createNewFile(void) {
 	fileName += "-"; // Add a separator between datetime and filenumber
 
 	char buffer[5];
-	sprintf(buffer, "%05d", cntFile); //Making sure the file number is always printed with 5 digits
+	sprintf(buffer, "%05d", cntFile); // Making sure the file number is always printed with 5 digits
 	//  Serial.println(buffer);
 	fileName += String(buffer); 
 
@@ -638,7 +655,7 @@ void createNewFile(void) {
 
 	// open the file. note that only one file can be open at a time,
 	// so you have to close this one before opening another.
-	Serial.print("Creating this file on the SD card: ");
+	Serial.print("Creating the following file on the SD card: ");
 	Serial.println(fileName);
 	dataFile = SD.open(fileName, FILE_WRITE);
 
@@ -693,13 +710,13 @@ void createNewSeparatorFile(void) {
 	strncpy(timeStamp, timeStampFormat_FileName, sizeof(timeStampFormat_FileName));
 	fileName += timestampForFileName.toString(timeStamp);
 
-  fileName += "_";
+  fileName += "_U";
   fileName += UNIT_NUMBER; // Add the unit number to the file name to identify quickly from which unit the files associated to this session are from
   fileName += "_";
 
 	fileName += SESSION_SEPARATOR_STRING; // Add a separator marker after the date
 
-	fileName += ".txt"; //add the extension (we do bad things but we do have principles)
+	fileName += ".txt"; // Add the extension (we do bad things but we do have principles)
 
 
 	if (SD.exists(fileName)) {
