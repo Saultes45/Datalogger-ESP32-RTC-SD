@@ -5,11 +5,13 @@ This repository is made for people who want to use any ESP32 datalogging capabil
 
 Hardware:
 
-It has been tested with Adafruit gear: Feather Huzzah32 and the feather datalogging shield (SD+RTC)
+It has been tested with Adafruit gear: Feather Huzzah32 (ESP32 WROOM),  the feather datalogging shield (SD+RTC), and the 6-DoF IMU LSM6DS33
 
 https://www.adafruit.com/product/3405
 
 https://www.adafruit.com/product/2922
+
+https://www.adafruit.com/product/4480
 
 
 ------------------------
