@@ -37,6 +37,8 @@
 #define UNIT_NUMBER                   1       // Number of the unit to identify the files (should be 1, 2, 3, or 4)
 
 // CPU frequency
+
+#define MAX_CPU_FREQUENCY             240
 #define TARGET_CPU_FREQUENCY          30//80
 
 // FreeRTOS
@@ -69,7 +71,7 @@
 #define FORMAT_GYR  		6     		// Numbers significative digits for the GYROSCOPES
 #define FORMAT_SEP  		','    		// Separator between the different files so that the data can be read/parsed by softwares
 #define FORMAT_END  		"\r\n"  	// End of line for 1 aquisition, to be printed in the SD card // <Not used>
-#define MAX_LINES_PER_FILES 18000 // Maximum number of lines that we want stored in 1 SD card file. It should be about 1h worth
+#define MAX_LINES_PER_FILES 180 // Maximum number of lines that we want stored in 1 SD card file. It should be about 1h worth
 #define SESSION_SEPARATOR_STRING "----------------------------------"
 
 // -------------------------- Global variables ----------------

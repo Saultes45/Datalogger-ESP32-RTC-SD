@@ -333,21 +333,28 @@ void TaskLog(void *pvParameters)  // This is a task.
     //------------------------
   
     // Check if the file is available
-    if (dataFile) {
-      if (cntLinesInFile >= MAX_LINES_PER_FILES - 1) { // Check if we have reached the max. number of lines per file
-      // Write to the file w/out the "\r\n"
-      dataFile.print(dataString);
-      // Close the file
-      dataFile.close();
-      // Reset the line counter
-      cntLinesInFile = 0;
-      // Create a new file
-      createNewFile();
-      #ifdef SERIAL_DEBUG
-        Serial.println("Reached the max number of lines per file, starting a new one");
-      #endif
+    if (dataFile) 
+    {
+      // We do it like this because of the "\r\n" not desired at the end of a file
+      if (cntLinesInFile >= MAX_LINES_PER_FILES - 1) // Check if we have reached the max. number of lines per file
+      { 
+        // Boost the frequency of the CPU to the MAX so that the writing takes less time
+        setCpuFrequencyMhz(MAX_CPU_FREQUENCY);
+        // Write to the file w/out the "\r\n"
+        dataFile.print(dataString);
+        // Close the file
+        dataFile.close();
+        // Reset the line counter
+        cntLinesInFile = 0;
+        // Create a new file
+        createNewFile();
+        #ifdef SERIAL_DEBUG
+          Serial.println("Reached the max number of lines per file, starting a new one");
+        #endif
+        // Limit back the frequency of the CPU to consume less power
+        setCpuFrequencyMhz(TARGET_CPU_FREQUENCY);
     }
-    else
+    else // wE ARE STILL UNDER THE LIMIT OF NUMBER OF LINES PER FILE
     {
       dataFile.println(dataString);
       cntLinesInFile++; // Increment the lines-in-current-file counter
@@ -654,13 +661,15 @@ void testRTC(void) {
 	Serial.println("Testing the RTC...");
 
 	if (!rtc.begin()) {
-		Serial.println("Couldn't find RTC");
-		Serial.flush();
+		Serial.println("Couldn't find RTC, is it properly connected?");
+		Serial.flush(); // Wait until there all the text for the console have been sent
 		abort();
 	}
 
 	if (!rtc.initialized() || rtc.lostPower()) {
 		Serial.println("RTC is NOT initialized. Use the NTP sketch to set the time!");
+    Serial.println("This is not an important error");
+    Serial.println("The datalogger might still be able to function properly");
     //blinkAnError(6);
 	}
 
