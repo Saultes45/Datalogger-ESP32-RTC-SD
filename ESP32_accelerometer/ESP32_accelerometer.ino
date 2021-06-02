@@ -222,6 +222,9 @@ void TaskLog(void *pvParameters)  // This is a task.
 
   // Initialisation
 
+   /* Block for 1ms. */
+  const TickType_t xDelay = 1 / portTICK_PERIOD_MS;
+
   for (;;) // A task should never return or exit
   {
     if (isrExecTaskFlag)
@@ -339,7 +342,7 @@ void TaskLog(void *pvParameters)  // This is a task.
       if (cntLinesInFile >= MAX_LINES_PER_FILES - 1) // Check if we have reached the max. number of lines per file
       { 
         // Boost the frequency of the CPU to the MAX so that the writing takes less time
-        setCpuFrequencyMhz(MAX_CPU_FREQUENCY);
+        //setCpuFrequencyMhz(MAX_CPU_FREQUENCY);
         // Write to the file w/out the "\r\n"
         dataFile.print(dataString);
         // Close the file
@@ -352,7 +355,7 @@ void TaskLog(void *pvParameters)  // This is a task.
           Serial.println("Reached the max number of lines per file, starting a new one");
         #endif
         // Limit back the frequency of the CPU to consume less power
-        setCpuFrequencyMhz(TARGET_CPU_FREQUENCY);
+        //setCpuFrequencyMhz(TARGET_CPU_FREQUENCY);
     }
     else // wE ARE STILL UNDER THE LIMIT OF NUMBER OF LINES PER FILE
     {
@@ -392,7 +395,7 @@ void TaskLog(void *pvParameters)  // This is a task.
     // Wait before logging new sensor data
     //------------------------------------
     //delay(WAIT_LOOP_MS); //  freeRTOS + Timer ISR used instead
-    vTaskDelay(1);  // One tick delay (15ms) in between reads for stability // <--- Who is the muppet that wrote that in an official Arduino IDE example?
+    vTaskDelay(xDelay);    // Tell the Task Manager that this task is "paused", currently 1[ms], equivalent to a "delay"   
   }
   }
 }
