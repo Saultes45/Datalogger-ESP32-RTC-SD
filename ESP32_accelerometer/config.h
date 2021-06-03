@@ -34,12 +34,12 @@
 // -------------------------- Defines --------------------------
 
 
-#define UNIT_NUMBER                   1       // Number of the unit to identify the files (should be 1, 2, 3, or 4)
+#define UNIT_NUMBER                   2       // Number of the unit to identify the files (should be 1, 2, 3, or 4)
 
 // CPU frequency
 
 #define MAX_CPU_FREQUENCY             240
-#define TARGET_CPU_FREQUENCY          30//80
+#define TARGET_CPU_FREQUENCY          40//80
 
 // FreeRTOS
 #if CONFIG_FREERTOS_UNICORE
