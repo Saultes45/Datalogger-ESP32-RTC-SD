@@ -31,3 +31,13 @@ PS: I might add the Matlab code here to parse the data.
 I hope this is going to help you.
 
 Enjoy!
+
+
+--------------------
+
+EDIT: Added Matlab processing scripts
+
+Just create a folder named "00_PUT_SD_CARD_DATA_HERE" ins the same folder as the matlab files. Put all the .txt that have been logged in there.
+
+You just need to run this one: A_CalculateOrientationFromIMU.m
+
