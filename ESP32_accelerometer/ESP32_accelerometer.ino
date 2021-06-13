@@ -235,7 +235,7 @@ void TaskLog(void *pvParameters)  // This is a task.
     String dataString  = "";
     String myTimestamp = "";
   
-    // Add start of message charachter
+    // Add start of message character
     //--------------------------------
     dataString += SOM_LOG;
   
@@ -244,9 +244,9 @@ void TaskLog(void *pvParameters)  // This is a task.
     time_loop = rtc.now(); // MUST be global!!!!! or it won't update
     //  DateTime now = DateTime(2000,01,01, 00, 00, 00); // DEBUG
   
-    //source https://github.com/adafruit/RTClib/blob/master/examples/toString/toString.ino
+    // Source https://github.com/adafruit/RTClib/blob/master/examples/toString/toString.ino
     // HERE -> look for user "cattledog" : https://forum.arduino.cc/t/now-rtc-gets-stuck-if-called-in-setup/632619/3 
-    //buffer can be defined using following combinations:
+    // buffer can be defined using following combinations:
     // hh   - hour with a leading zero (00 to 23)
     // mm   - minute with a leading zero (00 to 59)
     // ss   - whole second with a leading zero where applicable (00 to 59)
@@ -257,7 +257,8 @@ void TaskLog(void *pvParameters)  // This is a task.
     // DD   - day as number with a leading zero (01 to 31)
     // DDD  - abbreviated English day name ('Mon' to 'Sun')
   
-    char timeStamp[sizeof(timeStampFormat_Line)]; // We are obliged to do that horror because the method "toString" input parameter is also the output
+    // We are obliged to do that horror because the method "toString" input parameter is also the output
+    char timeStamp[sizeof(timeStampFormat_Line)]; 
     strncpy(timeStamp, timeStampFormat_Line, sizeof(timeStampFormat_Line));
     dataString += time_loop.toString(timeStamp);
   
