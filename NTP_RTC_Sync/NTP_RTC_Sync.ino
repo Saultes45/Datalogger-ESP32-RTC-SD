@@ -76,30 +76,30 @@ int timeUpdated = 0;
 void syncTime(void) 
 {
 
-//connect to WiFi
-  Serial.printf("Connecting to %s ", ssid);+
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-      delay(500);
-      Serial.print(".");
-  }
-  Serial.println(" CONNECTED");
-
-  
-  timeClient.begin();
-  timeClient.update();
-
-  long actualTime = timeClient.getEpochTime();
-  Serial.print("Internet Epoch Time: ");
-  Serial.println(actualTime);
-  rtc.adjust(DateTime(actualTime));
+	//connect to WiFi
+	Serial.printf("Connecting to %s ", ssid);+
+	WiFi.begin(ssid, password);
+	while (WiFi.status() != WL_CONNECTED) {
+		delay(500);
+		Serial.print(".");
+	}
+	Serial.println(" CONNECTED");
 
 
+	timeClient.begin();
+	timeClient.update();
 
-  //Turn Off WIFI after update
-  WiFi.disconnect();
-  WiFi.mode(WIFI_OFF);
-  //WiFi.forceSleepBegin();
+	long actualTime = timeClient.getEpochTime();
+	Serial.print("Internet Epoch Time: ");
+	Serial.println(actualTime);
+	rtc.adjust(DateTime(actualTime));
+
+
+
+	//Turn Off WIFI after update
+	WiFi.disconnect();
+	WiFi.mode(WIFI_OFF);
+	//WiFi.forceSleepBegin();
 
 }
 
@@ -108,63 +108,63 @@ void syncTime(void)
 // -------------------------- Set up --------------------------
 
 void setup() {
-  Serial.begin(115200);
+	Serial.begin(115200);
 
-   Serial.println("Testing the RTC...");
+	Serial.println("Testing the RTC...");
 
-  if (!rtc.begin()) 
-  {
-    Serial.println("Couldn't find RTC");
-    Serial.flush();
-    abort();
-  }
+	if (!rtc.begin()) 
+	{
+		Serial.println("Couldn't find RTC");
+		Serial.flush();
+		abort();
+	}
 
-  if (!rtc.initialized() || rtc.lostPower()) 
-  {
-    Serial.println("RTC is NOT initialized");
-        // When the RTC was stopped and stays connected to the battery, it has
-  // to be restarted by clearing the STOP bit. Let's do this to ensure
-  // the RTC is running.
-    rtc.start();
-  }
+	if (!rtc.initialized() || rtc.lostPower()) 
+	{
+		Serial.println("RTC is NOT initialized");
+		// When the RTC was stopped and stays connected to the battery, it has
+		// to be restarted by clearing the STOP bit. Let's do this to ensure
+		// the RTC is running.
+		rtc.start();
+	}
 
 
 
-    Serial.println("Let's see if the RTC is running");
-    Serial.println("There should be about 1s drifference");
-    
-    DateTime now = rtc.now();
-    Serial.print(now.year(), DEC);
-    Serial.print('/');
-    Serial.print(now.month(), DEC);
-    Serial.print('/');
-    Serial.print(now.day(), DEC);
-    Serial.print(' ');
-    Serial.print(now.hour(), DEC);
-    Serial.print(':');
-    Serial.print(now.minute(), DEC);
-    Serial.print(':');
-    Serial.print(now.second(), DEC);
-    Serial.println();
+	Serial.println("Let's see if the RTC is running");
+	Serial.println("There should be about 1s drifference");
+	
+	DateTime now = rtc.now();
+	Serial.print(now.year(), DEC);
+	Serial.print('/');
+	Serial.print(now.month(), DEC);
+	Serial.print('/');
+	Serial.print(now.day(), DEC);
+	Serial.print(' ');
+	Serial.print(now.hour(), DEC);
+	Serial.print(':');
+	Serial.print(now.minute(), DEC);
+	Serial.print(':');
+	Serial.print(now.second(), DEC);
+	Serial.println();
 
-    delay(1000);
+	delay(1000);
 
-    now = rtc.now();
-    Serial.print(now.year(), DEC);
-    Serial.print('/');
-    Serial.print(now.month(), DEC);
-    Serial.print('/');
-    Serial.print(now.day(), DEC);
-    Serial.print(' ');
-    Serial.print(now.hour(), DEC);
-    Serial.print(':');
-    Serial.print(now.minute(), DEC);
-    Serial.print(':');
-    Serial.print(now.second(), DEC);
-    Serial.println();
+	now = rtc.now();
+	Serial.print(now.year(), DEC);
+	Serial.print('/');
+	Serial.print(now.month(), DEC);
+	Serial.print('/');
+	Serial.print(now.day(), DEC);
+	Serial.print(' ');
+	Serial.print(now.hour(), DEC);
+	Serial.print(':');
+	Serial.print(now.minute(), DEC);
+	Serial.print(':');
+	Serial.print(now.second(), DEC);
+	Serial.println();
 
-    syncTime();
-    Serial.println("Updating EEPROM..");
+	syncTime();
+	Serial.println("Updating EEPROM..");
 
 }
 
@@ -174,26 +174,26 @@ void setup() {
 // -------------------------- Loop --------------------------
 void loop () 
 {
-  DateTime now = rtc.now();
+	DateTime now = rtc.now();
 
-  Serial.print(now.year(), DEC);
-  Serial.print('/');
-  Serial.print(now.month(), DEC);
-  Serial.print('/');
-  Serial.print(now.day(), DEC);
-  Serial.print(" (");
-  Serial.print(daysOfTheWeek[now.dayOfTheWeek()]);
-  Serial.print(") ");
-  Serial.print(now.hour(), DEC);
-  Serial.print(':');
-  Serial.print(now.minute(), DEC);
-  Serial.print(':');
-  Serial.print(now.second(), DEC);
-  Serial.println();
+	Serial.print(now.year(), DEC);
+	Serial.print('/');
+	Serial.print(now.month(), DEC);
+	Serial.print('/');
+	Serial.print(now.day(), DEC);
+	Serial.print(" (");
+	Serial.print(daysOfTheWeek[now.dayOfTheWeek()]);
+	Serial.print(") ");
+	Serial.print(now.hour(), DEC);
+	Serial.print(':');
+	Serial.print(now.minute(), DEC);
+	Serial.print(':');
+	Serial.print(now.second(), DEC);
+	Serial.println();
 
 
-  Serial.println();
-  delay(1000);
+	Serial.println();
+	delay(1000);
 }
 
 
