@@ -7,9 +7,9 @@
 *
 * Metadata
 * Written by    : ??
-* Verified by   : N/A
+* Verified by   : Nathanael Esnault
 * Creation date : ??
-* Version       : 0.1 (finished on ...)
+* Version       : 1.2 (finished on ...)
 * Modifications :
 * Known bugs    :
 *
@@ -26,20 +26,18 @@
 */
 
 
-// -------------------------- Includes --------------------------
-#include "WifiPass.h"
-//#include <ESP8266WiFi.h>
+// -------------------------- Includes [7] --------------------------
 #include <WiFi.h>
-#include <NTPClient.h> //NTPClient by Arduino
+#include <NTPClient.h> // NTPClient by Arduino
 #include <WiFiUdp.h>
 #include <Wire.h>
 #include <EEPROM.h>
-#include <RTClib.h> //RTClib by Adafruit
+#include <RTClib.h>   // RTClib by Adafruit
+
+#include "WifiPass.h" // <--- Where you put your WiFi credentials
 
 
-
-
-// -------------------------- Defines and Const --------------------------
+// -------------------------- Defines and Const [3] --------------------------
 
 //closest NTP Server
 #define NTP_SERVER "pool.ntp.org"
@@ -57,7 +55,7 @@ const uint8_t   LOG_PWR_PIN_3               = 12;  // To turn the adalogger Feat
 const uint8_t   LOG_PWR_PIN_4               = 27;  // To turn the adalogger Feather ON and OFF
 
 
-// -------------------------- Global Variables --------------------------
+// -------------------------- Global Variables [5] --------------------------
 
 char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 
@@ -70,7 +68,7 @@ NTPClient timeClient(ntpUDP, NTP_SERVER, GMT_TIME_ZONE * 3600 , 60000);
 
 int timeUpdated = 0;
 
-// -------------------------- Functions declaration [1]--------------------------
+// -------------------------- Functions declaration [1] --------------------------
 
 //******************************************************************************************
 void syncTime(void) 
@@ -107,7 +105,20 @@ void syncTime(void)
 
 // -------------------------- Set up --------------------------
 
-void setup() {
+void setup() 
+{
+
+  pinMode (LOG_PWR_PIN_1    , OUTPUT);
+  pinMode (LOG_PWR_PIN_2    , OUTPUT);
+  pinMode (LOG_PWR_PIN_3    , OUTPUT);
+  pinMode (LOG_PWR_PIN_4    , OUTPUT);
+
+  digitalWrite(LOG_PWR_PIN_1, HIGH);
+  digitalWrite(LOG_PWR_PIN_2, HIGH);
+  digitalWrite(LOG_PWR_PIN_3, HIGH);
+  digitalWrite(LOG_PWR_PIN_4, HIGH);
+
+  
 	Serial.begin(115200);
 
 	Serial.println("Testing the RTC...");
@@ -131,7 +142,7 @@ void setup() {
 
 
 	Serial.println("Let's see if the RTC is running");
-	Serial.println("There should be about 1s drifference");
+	Serial.println("There should be about 1s difference");
 	
 	DateTime now = rtc.now();
 	Serial.print(now.year(), DEC);
