@@ -43,16 +43,11 @@
 #define NTP_SERVER "pool.ntp.org"
 
 //GMT Time Zone with sign
-#define GMT_TIME_ZONE +0
+#define GMT_TIME_ZONE +12 // for Aotearoa (New-Zealand)
 
 //Force RTC update and store on EEPROM
 //change this to a random number between 0-255 to force time update
 #define FORCE_RTC_UPDATE 2
-
-const uint8_t   LOG_PWR_PIN_1               = 25;  // To turn the adalogger Feather ON and OFF
-const uint8_t   LOG_PWR_PIN_2               = 26;  // To turn the adalogger Feather ON and OFF
-const uint8_t   LOG_PWR_PIN_3               = 12;  // To turn the adalogger Feather ON and OFF
-const uint8_t   LOG_PWR_PIN_4               = 27;  // To turn the adalogger Feather ON and OFF
 
 
 // -------------------------- Global Variables [5] --------------------------
@@ -75,7 +70,7 @@ void syncTime(void)
 {
 
 	//connect to WiFi
-	Serial.printf("Connecting to %s ", ssid);+
+	Serial.printf("Connecting to %s ", ssid);
 	WiFi.begin(ssid, password);
 	while (WiFi.status() != WL_CONNECTED) {
 		delay(500);
@@ -108,20 +103,11 @@ void syncTime(void)
 void setup() 
 {
 
-  pinMode (LOG_PWR_PIN_1    , OUTPUT);
-  pinMode (LOG_PWR_PIN_2    , OUTPUT);
-  pinMode (LOG_PWR_PIN_3    , OUTPUT);
-  pinMode (LOG_PWR_PIN_4    , OUTPUT);
-
-  digitalWrite(LOG_PWR_PIN_1, HIGH);
-  digitalWrite(LOG_PWR_PIN_2, HIGH);
-  digitalWrite(LOG_PWR_PIN_3, HIGH);
-  digitalWrite(LOG_PWR_PIN_4, HIGH);
-
-  
+  while (!Serial) // wait for serial port to connect. Needed for native USB port only
 	Serial.begin(115200);
-
-	Serial.println("Testing the RTC...");
+	
+	Serial.println("-----------------------------------");
+	Serial.println("Testing the RTC connection ...");
 
 	if (!rtc.begin()) 
 	{
@@ -140,10 +126,11 @@ void setup()
 	}
 
 
-
-	Serial.println("Let's see if the RTC is running");
+  Serial.println("-----------------------------------");
+	Serial.println("Let's see if the RTC is running ...");
 	Serial.println("There should be about 1s difference");
-	
+
+  // Time t
 	DateTime now = rtc.now();
 	Serial.print(now.year(), DEC);
 	Serial.print('/');
@@ -160,6 +147,7 @@ void setup()
 
 	delay(1000);
 
+  // Time t+1s
 	now = rtc.now();
 	Serial.print(now.year(), DEC);
 	Serial.print('/');
@@ -174,10 +162,14 @@ void setup()
 	Serial.print(now.second(), DEC);
 	Serial.println();
 
+  Serial.println("-----------------------------------");
+	Serial.println("Updating EEPROM ...");
 	syncTime();
-	Serial.println("Updating EEPROM..");
+	
 
-}
+  Serial.println("###################################"); // indicates the end of the SET UP
+
+} // END OF SET UP
 
 
 
@@ -185,6 +177,7 @@ void setup()
 // -------------------------- Loop --------------------------
 void loop () 
 {
+  
 	DateTime now = rtc.now();
 
 	Serial.print(now.year(), DEC);
@@ -205,7 +198,8 @@ void loop ()
 
 	Serial.println();
 	delay(1000);
-}
+  
+} // END OF LOOP
 
 
 // END OF THE FILE
